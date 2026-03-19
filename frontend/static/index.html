@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Clash配置解析器</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .url-item {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            background-color: white;
+        }
+        .proxy-badge {
+            font-size: 0.8em;
+            margin-right: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .url-item:hover {
+            background-color: #f8f9fa;
+        }
+        .proxy-badge {
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+        .proxy-card {
+            margin-bottom: 10px;
+        }
+        .proxy-card .card-body {
+            padding: 12px;
+        }
+        .link-text {
+            font-family: monospace;
+            font-size: 0.9em;
+            background-color: #f8f9fa;
+            padding: 8px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .type-count {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+        .copy-btn {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .copy-btn:hover {
+            color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-3" id="loadingText">正在解析配置...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="mb-4">
+            <h1 class="display-5 fw-bold">
+                <i class="bi bi-diagram-3-fill text-primary"></i> Clash配置解析器
+            </h1>
+            <p class="lead">解析Clash配置文件并转换为节点链接</p>
+        </header>
+
+        <div class="row">
+            <!-- 左侧：URL管理 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-link"></i> URL管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="urlInput" class="form-label">添加Clash配置URL</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="urlInput" placeholder="https://example.com/clash/config.yaml">
+                                <button class="btn btn-outline-primary" type="button" id="addUrlBtn">
+                                    <i class="bi bi-plus"></i> 添加
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <button class="btn btn-success me-2" id="loadDefaultBtn">
+                                <i class="bi bi-cloud-download"></i> 加载默认URL
+                            </button>
+                            <button class="btn btn-warning me-2" id="clearAllBtn">
+                                <i class="bi bi-trash"></i> 清空列表
+                            </button>
+                        </div>
+
+                        <div id="urlList"></div>
+
+                        <div class="mt-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="convertLinksSwitch" checked>
+                                <label class="form-check-label" for="convertLinksSwitch">
+                                    转换为节点链接
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button class="btn btn-primary btn-lg" id="parseBtn">
+                                <i class="bi bi-play-fill"></i> 解析配置
+                            </button>
+                        </div>
+
+                        <!-- 快捷操作栏 -->
+                        <div class="mt-3 p-3 bg-light rounded" id="quickActions" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-warning text-dark" id="linksCount">0 个节点</span>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-success btn-sm" id="copyAllLinksBtn" title="一键复制所有链接">
+                                        <i class="bi bi-clipboard"></i> 复制全部
+                                    </button>
+                                    <button class="btn btn-info btn-sm" id="exportAllLinksBtn" title="导出为文本文件">
+                                        <i class="bi bi-download"></i> 导出
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计信息 -->
+                <div class="card mt-3">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart-fill"></i> 解析统计</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="statsContent">
+                            <p class="text-muted mb-0">暂无数据，请先解析配置</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：解析结果 -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-list-check"></i> 解析结果</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="resultsContent">
+                            <div class="text-center text-muted p-4">
+                                <i class="bi bi-inbox display-1"></i>
+                                <p class="mt-2">解析结果将显示在这里</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 节点链接（简化版） -->
+                <div class="card mt-3">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-link-45deg"></i> 节点链接</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                        <div id="linksContent">
+                            <p class="text-muted mb-0">节点链接将显示在这里</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-4 text-center text-muted">
+            <p>Clash配置解析器 - 解析Clash配置文件并转换为节点链接</p>
+        </footer>
+    </div>
+
+    <!-- 模板 -->
+    <template id="urlItemTemplate">
+        <div class="url-item">
+            <div class="url-text text-truncate" style="flex: 1;"></div>
+            <div>
+                <button class="btn btn-sm btn-outline-danger delete-url-btn">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <template id="resultItemTemplate">
+        <div class="result-item mb-2 border rounded">
+            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded-top result-header" style="cursor: pointer;">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-chevron-right me-2 collapse-icon"></i>
+                    <h6 class="mb-0 result-title"></h6>
+                    <span class="badge bg-secondary ms-2 result-count"></span>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge result-badge me-2"></span>
+                    <span class="type-stats small"></span>
+                </div>
+            </div>
+            <div class="error-text alert alert-danger m-2" style="display: none;"></div>
+            <div class="proxies-list p-2" style="display: none;"></div>
+        </div>
+    </template>
+
+    <template id="proxyItemTemplate">
+        <div class="proxy-card card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge proxy-type-badge"></span>
+                        <strong class="proxy-name"></strong>
+                        <small class="text-muted proxy-address"></small>
+                    </div>
+                    <div>
+                        <i class="bi bi-copy copy-btn copy-proxy-btn" title="复制配置"></i>
+                    </div>
+                </div>
+                <div class="link-text mt-2" style="display: none;"></div>
+            </div>
+        </div>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

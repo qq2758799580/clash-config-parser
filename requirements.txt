@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+redis
+pyyaml
+httpx
+base64io
+python-multipart
+jinja2
+# 时间处理
+pytz
+
+# HTTP请求
+requests
