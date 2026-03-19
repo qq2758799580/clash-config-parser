@@ -24,10 +24,6 @@ COPY . /app
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-ENV ENVIRONMENT=prod \
-    PORT=8080 \
-    LOG_LEVEL=info \
-    UVICORN_WORKERS=1
 
 EXPOSE 8080
 
